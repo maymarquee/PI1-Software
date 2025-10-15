@@ -12,41 +12,38 @@
 }
 
 .title {
-    font-size: 2.5rem; /* Tamanho grande */
-    color: #2c2c2c; /* Cor escura, mas não preto puro */
-    font-weight: 500; /* Um peso de fonte médio */
-    margin-top: 0; /* Remove a margem padrão do h1 */
-    margin-bottom: 24px; /* Espaço entre o título e onde os botões ficarão */
+    font-size: 2.5rem; 
+    color: #2c2c2c; 
+    font-weight: 300; 
+    margin-top: 0; 
+    margin-bottom: 24px; 
 }
 
 /* Estilo base para todos os botões de comando (azul, verde, marrom) */
 .commandItem {
   display: flex;
   justify-content: space-between;
-
+  font-family: var(--font-league-spartan), sans-serif;
   align-items: center;
   padding: 12px 24px;
   border-radius: 28px;
   border: none;
   color: white;
   font-size: 1.8rem;
-  font-weight: 500;
+  font-weight: 400;
   margin-bottom: 20px;
 }
 
 .commandButton:active {
-    transform: scale(0.99); /* Efeito de clique */
+    transform: scale(0.99); 
 }
 
-/* Container para os elementos da direita */
 .rightContent {
   display: flex;
   align-items: center;
-  gap: 16px; /* Espaço entre o input e o ícone */
+  gap: 16px; 
 }
 
-/* O pequeno campo de input de valor */
-/* ANTES era .valueInput */
 .valueButton {
   background-color: rgba(255, 255, 255, 0.9);
   color: #333;
@@ -55,24 +52,22 @@
   width: 90px;
   padding: 10px;
   font-size: 1rem;
-  font-weight: bold;
+  font-weight: 400;
   font-family: var(--font-league-spartan), sans-serif;
   text-align: center;
-  cursor: pointer; /* Agora tem um cursor de clique */
+  cursor: pointer; 
   transition: background-color 0.2s ease;
 }
 
 .valueButton:hover {
-  background-color: #fff; /* Efeito suave ao passar o mouse */
+  background-color: #fff; 
 }
 
-/* Estilo para o ícone de seta */
 .icon {
   font-size: 2rem;
   font-weight: bold;
 }
 
-/* Adiciona interatividade APENAS para os elementos <button> */
 button.commandItem {
   cursor: pointer;
   transition: transform 0.1s ease;
@@ -87,8 +82,8 @@ button.commandItem:active {
 }
 
 .blueButton {
-  background-color: #007aff; /* Tom de azul do iOS */
+  background-color: #007aff; 
 }
 .brownButton {
-  background-color: #c67c00; /* Tom de azul do iOS */
+  background-color: #c67c00;
 }

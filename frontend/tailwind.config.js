@@ -6,11 +6,11 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        "brand-green": "#00C853",
-        "brand-red": "#D50000",
-        "brand-blue": "#2962FF",
+        "brand-green": "#05A00A",
+        "brand-red": "#FF0000",
+        "brand-blue": "#0B55A4",
         "brand-yellow": "#FFD600",
-        "brand-background": "#E0F2F7", // Novo tom de azul claro
+        "brand-background": "#F0F6FF",
         "brand-text": "#212121",
       },
       fontFamily: {

@@ -6,10 +6,27 @@ export default function Home() {
   // Dados estáticos para a demonstração da tela principal (vazios, sem integração)
   const rotasExemplo: any[] = [];
 
+  const [trajetoExpandido, setTrajetoExpandido] = React.useState<number | null>(null);
+
   const trajetosAnterioresExemplo = [
-    { id: 1, nome: "Trajeto I" },
-    { id: 2, nome: "Trajeto II" },
-    { id: 3, nome: "Trajeto III" },
+    { 
+      id: 1, 
+      nome: "Trajeto I",
+      velocidade: "5km/h",
+      tempo: "5 min"
+    },
+    { 
+      id: 2, 
+      nome: "Trajeto II",
+      velocidade: "5km/h",
+      tempo: "5 min"
+    },
+    { 
+      id: 3, 
+      nome: "Trajeto III",
+      velocidade: "5km/h",
+      tempo: "5 min"
+    },
   ];
 
   // Funções placeholder para os botões
@@ -124,12 +141,21 @@ export default function Home() {
                 {trajetosAnterioresExemplo.map((trajeto) => (
                   <div
                     key={trajeto.id}
-                    className="bg-[#F6F6F6] rounded-lg p-4 hover:border-brand-blue cursor-pointer transition-colors"
+                    className="bg-[#F6F6F6] rounded-lg p-4 cursor-pointer transition-all"
+                    onClick={() => setTrajetoExpandido(trajetoExpandido === trajeto.id ? null : trajeto.id)}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-brand-text">{trajeto.nome}</span>
-                      <span className="text-gray-400">›</span>
+                      <span className={`text-gray-400 transform transition-transform ${trajetoExpandido === trajeto.id ? 'rotate-90' : ''}`}>
+                        ›
+                      </span>
                     </div>
+                    {trajetoExpandido === trajeto.id && (
+                      <div className="mt-4 space-y-2 text-sm text-gray-600">
+                        <p>velocidade | {trajeto.velocidade}</p>
+                        <p>tempo | {trajeto.tempo}</p>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

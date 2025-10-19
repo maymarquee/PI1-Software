@@ -1,8 +1,12 @@
-import type { Metadata } from "next";
-import { League_Spartan } from "next/font/google";
 import './globals.css';
+import { League_Spartan } from "next/font/google";
+import type { Metadata } from "next";
 
-const leangueSpartan = League_Spartan({ subsets: ["latin"] });
+
+const leagueSpartan = League_Spartan({
+  weight: ['300', '400', '500', '700'], 
+  //...
+});
 
 export const metadata: Metadata = {
   title: "Meu Projeto",
@@ -15,8 +19,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="pt-BR">
-      <body className={leangueSpartan.className}>
+    <html lang="pt-BR" className={leagueSpartan.className}>
+      <body >
         {children}
       </body>
     </html>

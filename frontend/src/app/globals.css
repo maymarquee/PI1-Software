@@ -1,0 +1,15 @@
+/* eslint-disable @typescript-eslint/ban-ts-comment */
+/* @tailwindcss disable unknownAtRules */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-league-spartan: 'League Spartan', sans-serif;
+}
+
+button,
+[role="button"] {
+  font-family: inherit;
+  font-weight: inherit;
+}

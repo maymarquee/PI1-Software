@@ -1,14 +1,8 @@
-
-import PainelDeComandos from '../components/Modal1';
-
-export default function HomePage() {
+import Modal1 from "../components/Modal1";
+export default function Page() {
   return (
-    <main style={{ padding: '40px' }}>
-      {/* Outros componentes da sua página... */}
+    <Modal1>
+    </Modal1>
 
-      <PainelDeComandos />
-
-      {/* Outros componentes da sua página... */}
-    </main>
   );
 }

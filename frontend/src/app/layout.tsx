@@ -1,20 +1,28 @@
+import './globals.css';
+import { League_Spartan } from "next/font/google";
 import type { Metadata } from "next";
-import "./globals.css";
+
+
+const leagueSpartan = League_Spartan({
+  weight: ['300', '400', '500', '700'], 
+  //...
+});
 
 export const metadata: Metadata = {
-  title: "Painel de Controle do Carrinho",
-  description: "Painel de controle para carrinho autônomo com ovo.",
+  title: "Meu Projeto",
+  description: "Projeto Integrador I",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="pt-BR">
-      <body>{children}</body>
+    <html lang="pt-BR" className={leagueSpartan.className}>
+      <body >
+        {children}
+      </body>
     </html>
   );
 }
-  

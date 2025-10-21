@@ -1,8 +1,4 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: {
-    optimizeCss: false, // forces Next to not use lightningcss
-  },
+module.exports = {
+  experimental: { optimizeCss: false },
 };
-
-module.exports = nextConfig;

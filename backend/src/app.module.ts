@@ -1,10 +1,9 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { CarrinhoModule } from './carrinho/carrinho.module';
 
 @Module({
-  imports: [],
-  controllers: [AppController],
-  providers: [AppService],
+  imports: [CarrinhoModule], // O AppModule agora só importa seus módulos reais
+  controllers: [], 
+  providers: [], 
 })
 export class AppModule {}

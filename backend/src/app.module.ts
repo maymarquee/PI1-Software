@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
+import { HttpModule } from '@nestjs/axios';
 import { CarrinhoModule } from './carrinho/carrinho.module';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Module({
-  imports: [CarrinhoModule], // O AppModule agora só importa seus módulos reais
-  controllers: [], 
-  providers: [], 
+  imports: [HttpModule, CarrinhoModule],
+  providers: [PrismaService],
 })
 export class AppModule {}

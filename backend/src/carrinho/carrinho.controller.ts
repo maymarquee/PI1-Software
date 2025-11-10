@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Get } from '@nestjs/common';
+import { Controller, Post, Body } from '@nestjs/common';
 import { CarrinhoService } from './carrinho.service';
 import { ExecutarTrajetoDto } from 'src/dtos/executar-trajeto.dto';
 
@@ -9,7 +9,7 @@ export class CarrinhoController {
   // Rota para o FRONTEND iniciar um trajeto
   @Post('executar')
   executarTrajeto(@Body() trajetoDto: ExecutarTrajetoDto) {
-    console.log(trajetoDto)
+    console.log(trajetoDto);
     return this.carrinhoService.executar(trajetoDto);
   }
 }

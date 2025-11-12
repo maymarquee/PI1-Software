@@ -3,6 +3,7 @@ import { PrismaClient } from '@prisma/client';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  trajeto: any;
   async onModuleInit() {
     await this.$connect();
     console.log('✅ Conectado ao banco de dados com Prisma');

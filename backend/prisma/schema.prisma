@@ -11,6 +11,14 @@ model Trajeto {
   id               Int        @id @default(autoincrement())
   dataExecucao     DateTime   @default(now())
   respostaCarrinho Json?
+
+  distanciaTotal     Float?   @default(0) // Distância total em cm
+  tempoTotalEstimado Float?   @default(0) // Tempo total em segundos
+  velocidadeMedia    Float?   @default(0) // Velocidade em cm/s
+
+  nome               String?  
+  isFavorito         Boolean  @default(false) 
+
   comandos         Comando[]
 }
 

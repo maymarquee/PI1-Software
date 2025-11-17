@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { TrajetoService } from './trajeto.service';
 import { ExecutarTrajetoDto } from '../dtos/executar-trajeto.dto';
 
@@ -16,5 +16,11 @@ export class TrajetoController {
   async listar() {
     const trajetos = await this.trajetoService.listarTrajetos();
     return trajetos;
+  }
+
+  @Patch(':id/favorito')
+  @HttpCode(HttpStatus.OK)
+  async toggleFavorito(@Param('id', ParseIntPipe) id: number) {
+    return this.trajetoService.toggleFavorito(id);
   }
 }

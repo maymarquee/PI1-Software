@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExecutarTrajetoDto } from '../dtos/executar-trajeto.dto';
 
@@ -28,6 +28,27 @@ export class TrajetoService {
     return this.prisma.trajeto.findMany({
       include: { comandos: true },
       orderBy: { criadoEm: 'desc' },
+    });
+  }
+  
+  async toggleFavorito(id: number) {
+    // Primeiro, busca o trajeto para ver o estado atual
+    const trajeto = await this.prisma.trajeto.findUnique({
+      where: { id },
+      select: { isFavorito: true },
+    });
+
+    if (!trajeto) {
+      throw new NotFoundException(`Trajeto com ID ${id} não encontrado.`);
+    }
+
+    // Inverte o valor
+    const novoEstado = !trajeto.isFavorito;
+
+    // Atualiza no banco
+    return this.prisma.trajeto.update({
+      where: { id },
+      data: { isFavorito: novoEstado },
     });
   }
 }

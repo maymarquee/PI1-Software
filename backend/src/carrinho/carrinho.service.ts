@@ -13,7 +13,7 @@ import { ComandoDto } from 'src/dtos/comando.dto';
 @Injectable()
 export class CarrinhoService {
   // 👇 **LEMBRE-SE DE VERIFICAR SEU IP AQUI** 👇
-  private readonly IP_CARRINHO = 'http://192.168.1.105'; // SEU IP REAL
+  private readonly IP_CARRINHO = 'http://192.168.120.216'; // SEU IP REAL
 
   constructor(
     private readonly httpService: HttpService,

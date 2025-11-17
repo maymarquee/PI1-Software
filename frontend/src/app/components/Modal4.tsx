@@ -4,8 +4,8 @@ import { useState } from 'react';
 
 // Definimos os tipos de props que o modal vai receber
 type Modal4Props = {
-  onClose: () => void;  // Função para fechar (clicando no 'X' ou 'Cancelar')
-  onSkip: () => void;   // Função para "Pular" (salvar sem nome)
+  onClose: () => void; // Função para fechar (clicando no 'X' ou 'Cancelar')
+  onSkip: () => void; // Função para "Pular" (salvar sem nome)
   onConfirm: (name: string) => void; // Função para "Salvar" (com nome)
 };
 

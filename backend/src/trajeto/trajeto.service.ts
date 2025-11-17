@@ -27,7 +27,7 @@ export class TrajetoService {
   async listarTrajetos() {
     return this.prisma.trajeto.findMany({
       include: { comandos: true },
-      orderBy: { criadoEm: 'desc' },
+      orderBy: { dataExecucao: 'desc' },
     });
   }
   

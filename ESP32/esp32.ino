@@ -306,6 +306,7 @@ void setup() {
   // Inicia o servidor web
   server.begin();
   Serial.println("Servidor web iniciado. Aguardando comandos do backend.");
+  servoMotor.attach(servoPin);
 }
 // =================================================================
 // 7. Loop

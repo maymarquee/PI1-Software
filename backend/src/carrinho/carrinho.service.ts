@@ -12,8 +12,7 @@ import { ComandoDto } from 'src/dtos/comando.dto';
 
 @Injectable()
 export class CarrinhoService {
-  // 👇 **LEMBRE-SE DE VERIFICAR SEU IP AQUI** 👇
-  private readonly IP_CARRINHO = 'http://192.168.120.216'; // SEU IP REAL
+  private readonly IP_CARRINHO = 'http://192.168.120.216'; 
 
   constructor(
     private readonly httpService: HttpService,
@@ -160,10 +159,6 @@ export class CarrinhoService {
     }
   }
 
-  // --- ADICIONE ESTAS DUAS NOVAS FUNÇÕES ---
-  /**
-   * Envia comando para ABRIR A PORTA do ESP32
-   */
   async abrirPorta() {
     console.log(
       `[CarrinhoService] Enviando comando para ABRIR PORTA ao ESP32...`,
@@ -189,10 +184,6 @@ export class CarrinhoService {
       this.handleDatabaseError(error);
     }
   }
-
-  /**
-   * Envia comando para FECHAR A PORTA do ESP32
-   */
   async fecharPorta() {
     console.log(
       `[CarrinhoService] Enviando comando para FECHAR PORTA ao ESP32...`,
@@ -218,5 +209,4 @@ export class CarrinhoService {
       this.handleDatabaseError(error);
     }
   }
-  // --- FIM ---
 }

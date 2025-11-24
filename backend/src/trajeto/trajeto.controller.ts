@@ -1,10 +1,20 @@
 import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { TrajetoService } from './trajeto.service';
 import { ExecutarTrajetoDto } from '../dtos/executar-trajeto.dto';
+import { StatusRealtimeDto } from 'src/dtos/status-realtime.dto';
 
 @Controller('trajetos')
 export class TrajetoController {
-  constructor(private readonly trajetoService: TrajetoService) {}
+  constructor(private readonly trajetoService: TrajetoService) { }
+  @Post('feedback')
+  receber(@Body() dto: StatusRealtimeDto) {
+    return this.trajetoService.receberFeedbackDoCarrinho(dto);
+  }
+
+  @Get('feedback')
+  entregar() {
+    return this.trajetoService.entregarFeedbackParaFrontend();
+  }
 
   @Post()
   async criar(@Body() dto: ExecutarTrajetoDto) {

@@ -1,10 +1,32 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ExecutarTrajetoDto } from '../dtos/executar-trajeto.dto';
+import { StatusRealtimeDto } from 'src/dtos/status-realtime.dto';
 
 @Injectable()
 export class TrajetoService {
   constructor(private prisma: PrismaService) {}
+  private filaDeFeedback: StatusRealtimeDto[] = [];
+
+  receberFeedbackDoCarrinho(dto: StatusRealtimeDto) {
+    console.log('[TrajetoService] Recebido:', dto);
+    
+    // Apenas guarda na memória. Não salva no banco.
+    this.filaDeFeedback.push(dto);
+    
+    return { status: 'recebido' };
+  }
+
+  // Chamado pelo Frontend (GET Polling)
+  entregarFeedbackParaFrontend() {
+    // Pega tudo o que chegou
+    const dadosParaEntregar = [...this.filaDeFeedback];
+    
+    // Limpa a fila para não mandar repetido na próxima vez
+    this.filaDeFeedback = [];
+    
+    return dadosParaEntregar;
+  }
 
   async salvarTrajeto(dto: ExecutarTrajetoDto) {
     // Cria um trajeto com seus comandos associados

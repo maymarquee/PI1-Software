@@ -22,7 +22,7 @@ model Trajeto {
   comandos         Comando[]
   logsSegmento LogSegmento[]
 }
-
+//COMANDOS QUE SÃO ENVIADOS
 model Comando {
   id         Int      @id @default(autoincrement())
   acao       String
@@ -31,6 +31,8 @@ model Comando {
   trajetoId  Int
   trajeto    Trajeto  @relation(fields: [trajetoId], references: [id])
 }
+
+//FEEDBACKS QUE SÃO RECEBIDOS
 model LogSegmento {
   id              Int      @id @default(autoincrement())
   

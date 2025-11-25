@@ -5,12 +5,8 @@ import axios from 'axios';
 import Modal1 from './components/Modal1';
 import Modal2 from './components/Modal2';
 import Modal3 from './components/Modal3';
-import Modal4 from './components/Modal4'; // <-- MUDANÇA: Importar o Modal4
-
-// --- Importar o 'react-hot-toast' ---
+import Modal4 from './components/Modal4'; 
 import toast, { Toaster } from 'react-hot-toast';
-
-// --- Ícones (Seus imports) ---
 import { 
   FaPlay, 
   FaStar, 
@@ -26,9 +22,6 @@ import {
 } from "react-icons/fa";
 import { FaRotateRight } from "react-icons/fa6";
 
-// -----------------------------------------------------------------
-// TIPOS (Idênticos)
-// -----------------------------------------------------------------
 type ComandoDto = {
   acao: 'frente' | 'rotacionar';
   valor?: number;
@@ -53,9 +46,6 @@ type TrajetoAnterior = {
   isFavorito: boolean;
 }
 
-// -----------------------------------------------------------------
-// FUNÇÃO "TRADUTORA" (Idêntica)
-// -----------------------------------------------------------------
 const transformarRotasParaDto = (rotas: any[]): ComandoDto[] => {
   return rotas.map(rota => {
     if (rota.action === 'para frente') {
@@ -87,7 +77,7 @@ export default function Home() {
   const [showModal1, setShowModal1] = useState(false);
   const [showModal2, setShowModal2] = useState(false);
   const [showModal3, setShowModal3] = useState(false);
-  const [showModal4, setShowModal4] = useState(false); // <-- MUDANÇA: Novo estado do Modal4
+  const [showModal4, setShowModal4] = useState(false); 
   const [pendingValue, setPendingValue] = useState<string>('10');
   const [isLoading, setIsLoading] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -158,7 +148,6 @@ export default function Home() {
     
   }, [rotasExemplo]);
 
-  // --- Funções dos Modais ---
   const handleAdicionarRota = () => {
     setShowModal1(true);
   };

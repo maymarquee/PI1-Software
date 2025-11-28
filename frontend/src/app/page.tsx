@@ -11,7 +11,7 @@ import toast, { Toaster } from 'react-hot-toast';
 
 import {
   FaPlay, FaStar, FaRegStar, FaArrowUp, FaUndo, FaChevronRight,
-  FaTimes, FaPlus, FaHandSparkles, FaDoorOpen, FaDoorClosed
+  FaTimes, FaPlus, FaHandSparkles, FaDoorOpen, FaDoorClosed, FaTrash
 } from "react-icons/fa";
 import { FaRotateRight } from "react-icons/fa6";
 
@@ -240,6 +240,9 @@ export default function Home() {
               {trajeto.isFavorito ? <FaStar /> : <FaRegStar />}
             </button>
             <button onClick={() => handleReplay(trajeto)} className="text-brand-blue" title="Reutilizar Trajeto"><FaPlay /></button>
+            <button onClick={() => handleExcluirTrajeto(trajeto.id)} className="text-red-400 hover:text-red-600" title="Excluir" disabled={isLoading}>
+  <FaTrash />
+</button>
         </div>
         <span className="text-sm text-gray-500 mr-2">{formatarData(trajeto.dataExecucao)}</span>
         <span className={`text-gray-400 transform transition-transform cursor-pointer p-1 ${trajetoExpandido === trajeto.id ? 'rotate-90' : ''}`} onClick={() => setTrajetoExpandido(trajetoExpandido === trajeto.id ? null : trajeto.id)}>
@@ -284,6 +287,23 @@ export default function Home() {
       )}
     </div>
   );
+
+  const handleExcluirTrajeto = async (id: number) => {
+    if (!confirm("Tem certeza que deseja excluir este trajeto?")) return;
+
+    setIsLoading(true);
+    try {
+      await axios.delete(`http://localhost:3001/trajetos/${id}`);
+      // Remove da lista visualmente
+      setTrajetosAnteriores((prev) => prev.filter((t) => t.id !== id));
+      toast.success("Trajeto excluído!");
+    } catch (error) {
+      console.error("Erro:", error);
+      toast.error("Erro ao excluir.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <>

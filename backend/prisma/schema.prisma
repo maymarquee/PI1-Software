@@ -29,7 +29,7 @@ model Comando {
   valor      Float?
   direcao    String?
   trajetoId  Int
-  trajeto    Trajeto  @relation(fields: [trajetoId], references: [id])
+  trajeto   Trajeto @relation(fields: [trajetoId], references: [id], onDelete: Cascade)
 }
 
 //FEEDBACKS QUE SÃO RECEBIDOS
@@ -41,7 +41,7 @@ model LogSegmento {
   velocidadeMedia Float
   
   trajetoId       Int
-  trajeto         Trajeto  @relation(fields: [trajetoId], references: [id])
+  trajeto         Trajeto  @relation(fields: [trajetoId], references: [id], onDelete: Cascade)
   
   criadoEm        DateTime @default(now())
 }

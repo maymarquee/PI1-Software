@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus, Delete } from '@nestjs/common';
 import { TrajetoService } from './trajeto.service';
 import { ExecutarTrajetoDto } from '../dtos/executar-trajeto.dto';
 import { StatusRealtimeDto } from 'src/dtos/status-realtime.dto';
@@ -33,4 +33,11 @@ export class TrajetoController {
   async toggleFavorito(@Param('id', ParseIntPipe) id: number) {
     return this.trajetoService.toggleFavorito(id);
   }
+
+  @Delete(':id')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async excluir(@Param('id', ParseIntPipe) id: number) {
+    return this.trajetoService.excluir(id);
+  }
+  
 }

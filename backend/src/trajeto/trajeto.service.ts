@@ -98,4 +98,10 @@ export class TrajetoService {
       data: { isFavorito: novoEstado },
     });
   }
+
+  async excluir(id: number) {
+    return await this.prisma.trajeto.delete({
+      where: { id },
+    });
+  }
 }

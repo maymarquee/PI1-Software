@@ -27,7 +27,6 @@ export class CarrinhoController {
     return this.carrinhoService.interruptar();
   }
 
-  // --- ADICIONE ESTAS DUAS NOVAS ROTAS ---
   @Post('abrir-porta')
   @HttpCode(HttpStatus.OK)
   async abrirPorta() {
@@ -41,5 +40,4 @@ export class CarrinhoController {
     console.log('Recebida requisição para FECHAR PORTA');
     return this.carrinhoService.fecharPorta();
   }
-  // --- FIM ---
 }

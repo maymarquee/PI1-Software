@@ -1,318 +1,349 @@
-// =================================================================
-// 1. BIBLIOTECAS
-// =================================================================
 #include <ESPmDNS.h>
 #include <ESP32Servo.h>
 #include <WiFi.h>
 #include <WebServer.h>
+#include <HTTPClient.h> 
 #include <Arduino_JSON.h>
 #include <ArduinoOTA.h>
+#include <PID_v1.h>
+#include <WiFiUdp.h> 
 
-// =================================================================
-// 2. CONFIGURAÇÕES 
-// =================================================================
 const char* ssid = "Note10";
 const char* password = "esp32_pi1";
 
-// --- Pinos da Ponte H (Motor) ---
+// IP COMPUTADOR
+const char* pcIp = "192.168.136.40"; 
+const int pcPort = 3001;
+
+// URL montada dinamicamente
+const String backendUrl = "http://" + String(pcIp) + ":" + String(pcPort) + "/carrinho/status"; 
+
+// CONFIGURAÇÃO DOS LOGS UDP
+WiFiUDP udp;
+const int udpPort = 4210; // Porta para escutar os logs no PC
+
 #define IN1 27
 #define IN2 14
-#define ENA 26  // Motor A (Esquerdo) - PWM
+#define ENA 26
 #define IN3 23
 #define IN4 22
-#define ENB 21  // Motor B (Direito) - PWM
+#define ENB 21
 
-// --- Pino do Servo ---
+// --- Servo ---
 const int servoPin = 25;
 
-// =================================================================
-// 3. VARIÁVEIS GLOBAIS
-// =================================================================
-WebServer server(80);  // Servidor web que "recebe"
-Servo servoMotor;
-volatile bool trajetoInterrompido = false;
+// --- Encoders ---
+const int encoderR_PIN = 34;
+const int encoderL_PIN = 32;
 
-// =================================================================
-// 4. FUNÇÕES DE HARDWARE
-// =================================================================
+// --- Geometria ---
+const float PULSOS_POR_VOLTA = 20.0;
+const float RAIO_RODA_CM = 3.45;
+const float CM_POR_PULSO = (2.0 * 3.1415 * RAIO_RODA_CM) / PULSOS_POR_VOLTA;
+
+WebServer server(80);
+Servo servoMotor;
+
+// Controle
+volatile bool trajetoInterrompido = false;
+int currentTrajetoId = 0; 
+
+// Encoders (Volatile para Interrupção)
+volatile long pulsosR = 0;
+volatile long pulsosL = 0;
+volatile int lastStateR = 0;
+volatile int lastStateL = 0;
+unsigned long lastTimeR = 0;
+unsigned long lastTimeL = 0;
+float rpmR = 0, rpmL = 0;
+
+// PID
+double erroRPM, correcaoPID;
+double setpoint = 0; 
+double Kp = 2.0;  
+double Ki = 0.4;  
+double Kd = 0.1; 
+PID pid(&erroRPM, &correcaoPID, &setpoint, Kp, Ki, Kd, DIRECT);
+
+void IRAM_ATTR encoderR_ISR() {
+  int state = digitalRead(encoderR_PIN);
+  if (lastStateR == LOW && state == HIGH) {
+    pulsosR++;
+    unsigned long now = micros();
+    if (lastTimeR != 0) {
+      float dt = (now - lastTimeR) / 1e6;
+      rpmR = (1.0 / dt) / PULSOS_POR_VOLTA * 60.0;
+    }
+    lastTimeR = now;
+  }
+  lastStateR = state;
+}
+
+void IRAM_ATTR encoderL_ISR() {
+  int state = digitalRead(encoderL_PIN);
+  if (lastStateL == LOW && state == HIGH) {
+    pulsosL++;
+    unsigned long now = micros();
+    if (lastTimeL != 0) {
+      float dt = (now - lastTimeL) / 1e6;
+      rpmL = (1.0 / dt) / PULSOS_POR_VOLTA * 60.0;
+    }
+    lastTimeL = now;
+  }
+  lastStateL = state;
+}
+
+void pararCarrinho() {
+  digitalWrite(IN1, LOW); digitalWrite(IN2, LOW); analogWrite(ENA, 0);
+  digitalWrite(IN3, LOW); digitalWrite(IN4, LOW); analogWrite(ENB, 0);
+}
 
 void moverServo(int angulo) {
   angulo = constrain(angulo, 0, 180);
   servoMotor.write(angulo);
-  delay(500);
+  delay(500); 
+}
+
+void resetarEncoders() {
+  noInterrupts();
+  pulsosR = 0; pulsosL = 0;
+  rpmR = 0; rpmL = 0;
+  interrupts();
+}
+
+float calcularDistanciaMediaCm() {
+  long media = (pulsosR + pulsosL) / 2;
+  return media * CM_POR_PULSO;
+}
+
+void enviarFeedback(float distancia, float angulo, float velocidade) {
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+    http.begin(backendUrl);
+    http.addHeader("Content-Type", "application/json");
+
+    String json = "{";
+    if (currentTrajetoId > 0) json += "\"trajetoId\":" + String(currentTrajetoId);
+    if (json.length() > 1 && distancia != 0) json += ",";
+    if (distancia != 0) json += "\"distancia\":" + String(distancia);
+    if (json.length() > 1 && angulo != 0) json += ",";
+    if (angulo != 0) json += "\"angulo\":" + String(angulo);
+    if (json.length() > 1) json += ",";
+    json += "\"velocidade\":" + String(velocidade);
+    json += "}";
+    int httpResponseCode = http.POST(json);
+    
+    if (httpResponseCode <= 0) {
+      debug("ERRO HTTP Feedback: " + http.errorToString(httpResponseCode));
+    }
+    http.end();
+  } else {
+    debug("ERRO: Sem Wi-Fi para Feedback");
+  }
 }
 
 
-//Função para abrir a porta
-void abrirPorta() {
-  moverServo(50);  
+void executarCicloPID(int velocidadeBase) {
+  if (micros() - lastTimeR > 500000) rpmR = 0; 
+  if (micros() - lastTimeL > 500000) rpmL = 0;
+
+  erroRPM = rpmR - rpmL; 
+  pid.Compute();
+
+  int motorR = velocidadeBase + correcaoPID; 
+  int motorL = velocidadeBase - correcaoPID;
+
+  motorR = constrain(motorR, 0, 255);
+  motorL = constrain(motorL, 0, 255);
+
+  digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW); analogWrite(ENA, motorL);
+  digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW); analogWrite(ENB, motorR);
 }
 
-//Função para fechar a porta
-void fecharPorta() {
-  moverServo(160);
+// Move para frente e retorna a distância percorrida
+float moverFrentePID(float distanciaMetaCm, int velocidadeAlvo, float &velocidadeMediaOut) {
+  resetarEncoders();
+  float distanciaPercorrida = 0;
+  float velocidadeAtual = 10.0; // Usei float para o cálculo de 1.2 
+  unsigned long tempoInicio = millis();
+
+  debugVal("Iniciando PID. Meta", distanciaMetaCm);
+
+  while (distanciaPercorrida < distanciaMetaCm) {
+    server.handleClient();
+    if (trajetoInterrompido) {
+      pararCarrinho();
+      debug("!!! Movimento Interrompido !!!");
+      // Calcula média parcial se interromper
+      unsigned long tempoFim = millis();
+      float segundos = (tempoFim - tempoInicio) / 1000.0;
+      if (segundos > 0) velocidadeMediaOut = distanciaPercorrida / segundos;
+      return distanciaPercorrida; 
+    }
+
+    if (velocidadeAtual < velocidadeAlvo) {
+      executarCicloPID((int)velocidadeAtual);
+      velocidadeAtual = velocidadeAtual * 1.2; 
+      
+      if (velocidadeAtual > velocidadeAlvo) velocidadeAtual = velocidadeAlvo;
+    } else {
+      executarCicloPID(velocidadeAlvo);
+    }
+
+    distanciaPercorrida = calcularDistanciaMediaCm();
+    delay(10);
+  }
+  
+  pararCarrinho();
+  unsigned long tempoFim = millis();
+  float tempoSegundos = (tempoFim - tempoInicio) / 1000.0;
+
+  if (tempoSegundos > 0) {
+    velocidadeMediaOut = distanciaPercorrida / tempoSegundos; // cm/s
+  } else {
+    velocidadeMediaOut = 0;
+  }
+
+  debugVal("Distancia Atingida", distanciaPercorrida);
+  debugVal("Velocidade Media Calc", velocidadeMediaOut);
+
+  return distanciaPercorrida; 
 }
 
+void rotacionar(String direcao) {
+  int velocidade = 150;
+  int tempoRotacao = 552; 
 
-// ==== Função para o carrinho andar para frente ====
-void andarFrente(int velocidade) {
-  // Garante que a velocidade fique dentro do limite do PWM (0 a 255, potencia media)
-  velocidade = constrain(velocidade, 0, 255);
+  debug("Rotacionando: " + direcao);
 
-  // Motor L gira para frente
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  analogWrite(ENA, velocidade);
+  if (direcao == "direita") {
+    digitalWrite(IN1, HIGH); digitalWrite(IN2, LOW); analogWrite(ENA, velocidade);
+    digitalWrite(IN3, LOW);  digitalWrite(IN4, HIGH); analogWrite(ENB, velocidade);
+  } else {
+    digitalWrite(IN1, LOW);  digitalWrite(IN2, HIGH); analogWrite(ENA, velocidade);
+    digitalWrite(IN3, HIGH); digitalWrite(IN4, LOW);  analogWrite(ENB, velocidade);
+  }
 
-  // Motor R gira para frente
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENB, velocidade +45);
+  unsigned long start = millis();
+  while(millis() - start < tempoRotacao) {
+    server.handleClient();
+    if (trajetoInterrompido) { pararCarrinho(); return; }
+    delay(1);
+  }
+  pararCarrinho();
 }
-
-// ==== Função para o carrinho andar para trás ====
-void andarTras(int velocidade) {
-
-  velocidade = constrain(velocidade, 0, 255);
-
-  // Motor L gira para trás
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, HIGH);
-  analogWrite(ENA, velocidade);
-
-  // Motor R gira para trás
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, HIGH);
-  analogWrite(ENB, velocidade);
-}
-//Função para o carrinho parar 
-void pararCarrinho() {
-  // Motor L parado
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  analogWrite(ENA, 0);
-
-  // Motor R parado
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENB, 0);
-}
-
-// ==== Função para o carrinho virar para a direita ====
-void virarDireita(int velocidade) {
-
-  velocidade = constrain(velocidade, 0, 255);
-
-  // Motor L gira para frente
-  digitalWrite(IN1, HIGH);
-  digitalWrite(IN2, LOW);
-  analogWrite(ENA, velocidade);
-
-  // Motor R parado
-  digitalWrite(IN3, LOW);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENB, 0);
-}
-
-// ==== Função para o carrinho virar para a esquerda ====
-void virarEsquerda(int velocidade) {
-
-  velocidade = constrain(velocidade, 0, 255);
-
-  // Motor R gira para frente
-  digitalWrite(IN3, HIGH);
-  digitalWrite(IN4, LOW);
-  analogWrite(ENB, velocidade);
-
-  // Motor L parado
-  digitalWrite(IN1, LOW);
-  digitalWrite(IN2, LOW);
-  analogWrite(ENA, 0);
-}
-
-
-// =================================================================
-// 5. FUNÇÃO "TRADUTORA" (Recebe, Traduz e Chama) - VERSÃO SIMPLES
-// =================================================================
 
 void handleInterromper() {
-  Serial.println("=========================================");
-  Serial.println("[ESP32] COMANDO DE PARADA RECEBIDO!");
-  Serial.println("=========================================");
-
-  trajetoInterrompido = true; // "Levanta a bandeira"
-  pararCarrinho();            // PARA OS MOTORES AGORA!
-
-  server.send(200, "text/plain", "Parada de emergencia acionada!");
-}
-
-void smartDelay(unsigned long ms) {
-  unsigned long start = millis();
-  while (millis() - start < ms) {
-    server.handleClient(); // Processa novas requisições
-
-    // Se a bandeira de interrupção foi levantada, saia do delay
-    if (trajetoInterrompido) {
-      break;
-    }
-    delay(1); // Pequena pausa para não sobrecarregar o loop
-  }
+  trajetoInterrompido = true;
+  pararCarrinho();
+  server.send(200, "text/plain", "EMERGENCIA");
+  enviarFeedback(0, 0, 0); 
 }
 
 void handleAbrirPorta() {
-  Serial.println("[ESP32] Comando para ABRIR PORTA recebido!");
-  abrirPorta();
-  server.send(200, "text/plain", "Porta aberta");
+  moverServo(50);
+  server.send(200, "text/plain", "Porta Aberta");
 }
 
 void handleFecharPorta() {
-  Serial.println("[ESP32] Comando para FECHAR PORTA recebido!");
-  fecharPorta();
-  server.send(200, "text/plain", "Porta fechada");
+  moverServo(160);
+  server.send(200, "text/plain", "Porta Fechada");
 }
 
 void handleExecutarTrajeto() {
-  Serial.println("=========================================");
-  Serial.println("[ESP32] Novo Trajeto Recebido do Backend!");
+  if (server.method() != HTTP_POST) {
+    server.send(405, "text/plain", "Method Not Allowed");
+    return;
+  }
 
-  trajetoInterrompido = false;
-
-  // 1. RECEBE A REQUISIÇÃO (JSON como texto)
   String jsonPayload = server.arg("plain");
-
-  // Responde ao Nest.js IMEDIATAMENTE (dizendo "OK, recebi!")
-  // NOTA: Para este teste simples, precisamos da lib Arduino_JSON
-  // Se não quisermos usá-la, podemos apenas responder um texto simples:
-  server.send(200, "text/plain", "Comandos recebidos. Executando.");
-
-  // Para traduzir o JSON, ainda precisamos da lib
-  // Vamos voltar atrás e manter a Arduino_JSON
-  // Mas vamos remover toda a parte de FEEDBACK
-  // (Esta é a versão 100% correta do que você pediu)
-
-  // (A linha abaixo precisa da lib Arduino_JSON.h)
   JSONVar data = JSON.parse(jsonPayload);
 
-  JSONVar comandos = data["comandos"];
-  int numComandos = comandos.length();
-  Serial.print("Iniciando ");
-  Serial.print(numComandos);
-  Serial.println(" comandos...");
+  if (JSON.typeof(data) == "undefined") {
+    server.send(400, "text/plain", "JSON invalido");
+    debug("ERRO: JSON Invalido");
+    return;
+  }
 
-  for (int i = 0; i < numComandos; i++) {
-    JSONVar cmd = comandos[i];
-    String acao = (const char*)cmd["acao"];
-    Serial.print("Executando passo ");
-    Serial.print(i + 1);
-    Serial.print(": ");
-    Serial.println(acao);
+  if (data.hasOwnProperty("trajetoId")) {
+    currentTrajetoId = (int)data["trajetoId"];
+    debugVal("Novo Trajeto ID", currentTrajetoId);
+  } else {
+    currentTrajetoId = 0;
+    debug("Aviso: Trajeto sem ID");
+  }
+
+  server.send(200, "text/plain", "Trajeto Iniciado");
+  
+  trajetoInterrompido = false;
+  JSONVar comandos = data["comandos"];
+  int num = comandos.length();
+
+  debugVal("Qtd Comandos", num);
+
+  for (int i = 0; i < num; i++) {
+    if (trajetoInterrompido) break;
+
+    String acao = (const char*)comandos[i]["acao"];
 
     if (acao == "frente") {
-      int valor_cm = (int)cmd["valor"];  // Pega o "valor" (ex: 50)
-
-      Serial.print("... Andando (simulando ");
-      Serial.print(valor_cm);
-      Serial.println("cm)");
-      andarFrente(200);  // LIGA o motor (velocidade 200)
-
-      // SIMULAÇÃO: 100 milissegundos por centímetro
-      // ** AJUSTE ESSE '100' ATÉ O CARRINHO ANDAR A DISTÂNCIA CERTA **
-      smartDelay(valor_cm * 100);
-
-      pararCarrinho();  // PARA o motor
+      double valorMeta = (double)comandos[i]["valor"];
+      int velAlvo = 180;
+      float velocidadeMediaReal = 0;
+      float distanciaReal = moverFrentePID((float)valorMeta, velAlvo, velocidadeMediaReal);
+      
+      enviarFeedback(distanciaReal, 0, velocidadeMediaReal);
 
     } else if (acao == "rotacionar") {
-      String direcao = (const char*)cmd["direcao"];
-
-      if (direcao == "direita") {
-        Serial.println("... Virando para a direita (simulado)");
-        virarDireita(200);  // LIGA o motor para virar
-        smartDelay(500);        // SIMULAÇÃO: 1 segundo para virar 90 graus. Ajuste!
-        pararCarrinho();    // PARA o motor
-
-      } else if (direcao == "esquerda") {
-        Serial.println("... Virando para a esquerda (simulado)");
-        virarEsquerda(200);  // LIGA o motor para virar
-        smartDelay(500);         // SIMULAÇÃO: 1 segundo para virar 90 graus. Ajuste!
-        pararCarrinho();     // PARA o motor
-      }
+      String direcao = (const char*)comandos[i]["direcao"];
+      
+      rotacionar(direcao);
+      float anguloEstimado = (direcao == "direita") ? 90.0 : -90.0;
+      enviarFeedback(0, anguloEstimado, 150.0);
     }
-    if (trajetoInterrompido) {
-      Serial.println("Trajeto interrompido pelo usuario. Saindo do loop.");
-      break; // Sai do loop "for"
-    }
+
+    delay(200); 
   }
-
-  Serial.println("Trajeto finalizado! (Sem feedback enviado)");
-  Serial.println("=========================================");
+  
+  pararCarrinho();
+  debug("Trajeto Finalizado");
+  currentTrajetoId = 0; 
 }
 
-// =================================================================
-// 6. SETUP
-// =================================================================
-
 void setup() {
-  // Configuração dos pinos de motor e servo
- Serial.begin(115200);
-  Serial.println("Iniciando...");
+  Serial.begin(115200);
+  delay(1000); 
 
-  // Configura os pinos dos motores
-  pinMode(IN1, OUTPUT);
-  pinMode(IN2, OUTPUT);
-  pinMode(ENA, OUTPUT);
-  pinMode(IN3, OUTPUT);
-  pinMode(IN4, OUTPUT);
-  pinMode(ENB, OUTPUT);
+  pinMode(IN1, OUTPUT); pinMode(IN2, OUTPUT); pinMode(ENA, OUTPUT);
+  pinMode(IN3, OUTPUT); pinMode(IN4, OUTPUT); pinMode(ENB, OUTPUT);
+  servoMotor.attach(servoPin);
 
-  // === Conecta ao Wi-Fi ===
+  pinMode(encoderR_PIN, INPUT); pinMode(encoderL_PIN, INPUT);
+  attachInterrupt(digitalPinToInterrupt(encoderR_PIN), encoderR_ISR, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(encoderL_PIN), encoderL_ISR, CHANGE);
+
+  pid.SetMode(AUTOMATIC);
+  pid.SetSampleTime(50);
+  pid.SetOutputLimits(-255, 255);
+
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
-  Serial.print("Conectando ao Wi-Fi");
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println();
-  Serial.println("Wi-Fi conectado!");
-  Serial.print("IP: ");
-  Serial.println(WiFi.localIP());
+  Serial.print("Conectando WiFi");
+  while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+  Serial.println("\nWiFi Conectado! IP: " + WiFi.localIP().toString());
 
-  // === Configura o OTA ===
-  ArduinoOTA.setHostname("esp32-ota");
-  ArduinoOTA.setPassword("1234");
-
-  ArduinoOTA.onStart([]() {
-    Serial.println("Iniciando atualização OTA");
-  });
-  ArduinoOTA.onEnd([]() {
-    Serial.println("\nAtualização concluída");
-  });
-  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
-    Serial.printf("Progresso: %u%%\r", (progress / (total / 100)));
-  });
-  ArduinoOTA.onError([](ota_error_t error) {
-    Serial.printf("Erro[%u]: ", error);
-  });
-
+  ArduinoOTA.setHostname("Carrinho-ESP32");
   ArduinoOTA.begin();
-  Serial.println("Pronto para OTA!");
 
-  // Define a rota que o Nest.js vai chamar
   server.on("/trajeto", HTTP_POST, handleExecutarTrajeto);
   server.on("/interruptar", HTTP_POST, handleInterromper);
   server.on("/abrirPorta", HTTP_POST, handleAbrirPorta);
   server.on("/fecharPorta", HTTP_POST, handleFecharPorta);
-
-  // Inicia o servidor web
+  
   server.begin();
-  Serial.println("Servidor web iniciado. Aguardando comandos do backend.");
-  servoMotor.attach(servoPin);
 }
-// =================================================================
-// 7. Loop
-// =================================================================
-void loop() {
-  server.handleClient();  // Processa requisições HTTP
-  ArduinoOTA.handle(); // Processa atualizações OTA
 
+void loop() {
+  server.handleClient(); 
+  ArduinoOTA.handle();   
 }

@@ -10,7 +10,7 @@ import { TrajetoService } from '../trajeto/trajeto.service'; // Importação cor
 @Injectable()
 export class CarrinhoService {
   // IP ESP32
-  private readonly IP_CARRINHO = 'http://192.168.120.216';
+  private readonly IP_CARRINHO = 'http://192.168.47.216';
 
   constructor(
     private readonly httpService: HttpService,
@@ -31,21 +31,20 @@ export class CarrinhoService {
     // Prepara o pacote para o ESP32
     // O ESP32 precisa desse ID para enviar os feedbacks depois
     const payloadParaCarrinho = {
-      runId: idParaOEsp, 
       comandos: trajetoDto.comandos,
     };
 
     try {
       //  TESTE (SIMULAÇÃO) - Descomentar para testar requisições carrinho -> back sem ESP32
-      
+      /*
       console.log("⚠️ MODO TESTE: Simulando resposta positiva do carrinho...");
       const data = { status: "recebido", mensagem: "Simulação de teste" };
       return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
-      
+      */
       // _____
 
       console.log(`[CarrinhoService] Enviando para ESP32 (ID: ${idParaOEsp})...`);
-      /*
+      
       const { data } = await firstValueFrom(
         this.httpService
           .post(`${this.IP_CARRINHO}/trajeto`, payloadParaCarrinho, { timeout: 5000 })
@@ -58,7 +57,7 @@ export class CarrinhoService {
       );
 
       // Retorna sucesso e o ID para o frontend saber o que monitorar
-      return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };*/
+      return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
 
     } catch (error) {
       this.handleError(error);

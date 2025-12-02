@@ -1,76 +1,53 @@
 import { HttpService } from '@nestjs/axios';
-import { Injectable, InternalServerErrorException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { ExecutarTrajetoDto } from 'src/dtos/executar-trajeto.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { PrismaClientKnownRequestError } from '@prisma/client/runtime/library'; // ✅ import correto
-import { PrismaService } from '../../prisma/prisma.service';
+import { TrajetoService } from '../trajeto/trajeto.service'; // Importação correta
 
 @Injectable()
 export class CarrinhoService {
-  // ** TROQUE ESTE IP PELO IP REAL DO SEU ESP32 **
-  private readonly URL_CARRINHO = 'http://localhost:4000/trajeto';
+  // IP ESP32
+  private readonly IP_CARRINHO = 'http://192.168.47.216';
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly prisma: PrismaService, // injeção do Prisma
+    private readonly trajetoService: TrajetoService, // Injeção do TrajetoService
   ) {}
 
-  /**
-   * Função para detectar e tratar erros de banco de dados
-   */
-  private handleDatabaseError(error: any) {
-    if (error instanceof PrismaClientKnownRequestError) {
-      switch (error.code) {
-        case 'P2002':
-          throw new BadRequestException('Registro duplicado. Já existe um item com este valor único.');
-        case 'P2003':
-          throw new BadRequestException('Violação de chave estrangeira. Verifique as relações.');
-        case 'P2025':
-          throw new BadRequestException('Registro não encontrado para atualização ou exclusão.');
-        default:
-          console.error('Erro Prisma desconhecido:', error);
-          throw new InternalServerErrorException('Erro desconhecido no banco de dados.');
-      }
-    }
-
-    console.error('Erro inesperado ao salvar no banco:', error);
-    throw new InternalServerErrorException('Falha ao salvar os dados no banco.');
-  }
-
-  /**
-   * Salva no banco os dados do trajeto executado
-   */
-  private async salvarNoBanco(dados: any) {
-  try {
-    return await this.prisma.trajeto.create({
-      data: {
-        dataExecucao: dados.dataExecucao,
-        respostaCarrinho: dados.respostaCarrinho,
-        comandos: {
-          create: dados.comandos.map((cmd) => ({
-            acao: cmd.acao,
-            valor: cmd.valor,
-            direcao: cmd.direcao,
-          })),
-        },
-      },
-      include: { comandos: true },
-    });
-  } catch (error) {
-    this.handleDatabaseError(error);
-  }
-}
-
-  /**
-   * Envia o trajeto para o ESP32 e salva no banco
-   */
   async executar(trajetoDto: ExecutarTrajetoDto) {
-    console.log(`[CarrinhoService] Repassando para ESP32:`, trajetoDto);
+    console.log(`[CarrinhoService] Iniciando nova execução...`);
+
+    // Salva o planejamento no banco via TrajetoService
+    // O banco cria o registro, define status como "executando" e gera o ID numérico.
+    const trajetoSalvo = await this.trajetoService.salvarTrajeto(trajetoDto);
+    
+    // Pega o ID que o banco gerou (ex: 15)
+    const idParaOEsp = trajetoSalvo.id;
+    console.log(`[CarrinhoService] Trajeto criado no banco com ID: ${idParaOEsp}`);
+
+    // Prepara o pacote para o ESP32
+    // O ESP32 precisa desse ID para enviar os feedbacks depois
+    const payloadParaCarrinho = {
+      comandos: trajetoDto.comandos,
+    };
 
     try {
+      //  TESTE (SIMULAÇÃO) - Descomentar para testar requisições carrinho -> back sem ESP32
+      /*
+      console.log("⚠️ MODO TESTE: Simulando resposta positiva do carrinho...");
+      const data = { status: "recebido", mensagem: "Simulação de teste" };
+      return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
+      */
+      // _____
+
+      console.log(`[CarrinhoService] Enviando para ESP32 (ID: ${idParaOEsp})...`);
+      
       const { data } = await firstValueFrom(
         this.httpService
-          .post(this.URL_CARRINHO, trajetoDto, { timeout: 5000 })
+          .post(`${this.IP_CARRINHO}/trajeto`, payloadParaCarrinho, { timeout: 5000 })
           .pipe(
             catchError((error) => {
               console.error('Erro ao comunicar com o carrinho:', error.message);
@@ -79,16 +56,51 @@ export class CarrinhoService {
           ),
       );
 
-      const trajetoSalvo = await this.salvarNoBanco({
-        comandos: trajetoDto.comandos,
-        respostaCarrinho: data,
-        dataExecucao: new Date(),
-      });
-
-      return { status: 'enviado', respostaCarrinho: data, trajetoSalvo };
+      // Retorna sucesso e o ID para o frontend saber o que monitorar
+      return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
 
     } catch (error) {
-      this.handleDatabaseError(error);
+      this.handleError(error);
     }
+  }
+
+  async interruptar() {
+    return this.enviarComandoSimples('interruptar');
+  }
+
+  async abrirPorta() {
+    return this.enviarComandoSimples('abrirPorta');
+  }
+
+  async fecharPorta() {
+    return this.enviarComandoSimples('fecharPorta');
+  }
+
+  // Helper para enviar comandos simples sem payload
+  private async enviarComandoSimples(endpoint: string) {
+    console.log(`[CarrinhoService] Enviando comando: ${endpoint}...`);
+    try {
+      const { data } = await firstValueFrom(
+        this.httpService
+          .post(`${this.IP_CARRINHO}/${endpoint}`, {}, { timeout: 3000 })
+          .pipe(
+            catchError((error) => {
+              console.error(`Erro em /${endpoint}:`, error.message);
+              throw new InternalServerErrorException(`Falha ao chamar ${endpoint}.`);
+            }),
+          ),
+      );
+      return { status: 'sucesso', comando: endpoint, resposta: data };
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  private handleError(error: any) {
+    if (error instanceof InternalServerErrorException) {
+      throw error;
+    }
+    console.error('Erro inesperado:', error);
+    throw new InternalServerErrorException('Erro interno no servidor.');
   }
 }

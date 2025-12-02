@@ -11,14 +11,37 @@ model Trajeto {
   id               Int        @id @default(autoincrement())
   dataExecucao     DateTime   @default(now())
   respostaCarrinho Json?
-  comandos         Comando[]
-}
 
+  distanciaTotal     Float?   @default(0) // Distância total em cm
+  tempoTotalEstimado Float?   @default(0) // Tempo total em segundos
+  velocidadeMedia    Float?   @default(0) // Velocidade em cm/s
+
+  nome               String?  
+  isFavorito         Boolean  @default(false) 
+
+  comandos         Comando[]
+  logsSegmento LogSegmento[]
+}
+//COMANDOS QUE SÃO ENVIADOS
 model Comando {
   id         Int      @id @default(autoincrement())
   acao       String
   valor      Float?
   direcao    String?
   trajetoId  Int
-  trajeto    Trajeto  @relation(fields: [trajetoId], references: [id])
+  trajeto   Trajeto @relation(fields: [trajetoId], references: [id], onDelete: Cascade)
+}
+
+//FEEDBACKS QUE SÃO RECEBIDOS
+model LogSegmento {
+  id              Int      @id @default(autoincrement())
+  
+  distancia       Float?   // Null se foi apenas rotação
+  angulo          Float?   // Null se foi apenas movimento reto
+  velocidadeMedia Float
+  
+  trajetoId       Int
+  trajeto         Trajeto  @relation(fields: [trajetoId], references: [id], onDelete: Cascade)
+  
+  criadoEm        DateTime @default(now())
 }

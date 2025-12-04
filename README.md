@@ -62,3 +62,35 @@ As tecnologias escolhidas pelo grupo foram:
     - NestJS;
     - Prisma;
     - Jest para testes.
+
+### Como rodar o projeto
+
+1. Clone o repositório:
+```
+git clone https://github.com/maymarquee/PI1-Software.git
+```
+
+2. Acesse o diretório que deseja rodar:
+```
+cd backend
+```
+ou
+```
+cd frontend
+```
+
+3. Rodando o **back-end**:  
+```
+npm run start:dev
+```
+4. Rodando o **front-end**:
+```
+npm run dev
+```
+
+### Como rodar os testes
+Para rodar os testes, acesse a pasta `backend` do projeto e digite no terminal:
+
+```
+npm test
+```

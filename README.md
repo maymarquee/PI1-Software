@@ -89,8 +89,16 @@ npm run dev
 ```
 
 ### Como rodar os testes
-Para rodar os testes, acesse a pasta `backend` do projeto e digite no terminal:
+Para rodar todos os testes, acesse a pasta `backend` do projeto e digite no terminal:
 
 ```
 npm test
 ```
+
+Para rodar os testes com cobertura, digite no terminal, dentro da pasta `backend`:
+
+```
+npm run test:cov
+```
+
+Para ler mais sobre os testes realizados, leia o documento: `testes.md` na pasta backend.

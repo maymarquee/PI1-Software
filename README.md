@@ -89,6 +89,9 @@ npm run dev
 ```
 
 ### Como rodar os testes
+
+#### Testes do Backend
+
 Para rodar todos os testes, acesse a pasta `backend` do projeto e digite no terminal:
 
 ```
@@ -102,3 +105,39 @@ npm run test:cov
 ```
 
 Para ler mais sobre os testes realizados, leia o documento: `testes.md` na pasta backend.
+
+#### Testes E2E (Frontend)
+
+Os testes end-to-end (E2E) testam o fluxo completo da aplicação usando o Playwright.
+
+**Pré-requisitos:**
+1. Backend rodando em `http://localhost:3001`:
+```bash
+cd backend
+npm run start:dev
+```
+
+2. Frontend rodando em `http://localhost:3000`:
+```bash
+cd frontend
+npm run dev
+```
+
+**Rodar todos os testes E2E:**
+```bash
+cd frontend
+npx playwright test e2e/spec/
+```
+
+**Rodar testes com interface gráfica (UI Mode):**
+```bash
+cd frontend
+npx playwright test e2e/spec/ --ui
+```
+
+**Gerar relatório HTML dos testes:**
+```bash
+cd frontend
+npx playwright test e2e/spec/
+npx playwright show-report
+```

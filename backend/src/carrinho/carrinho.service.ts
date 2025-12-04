@@ -1,11 +1,8 @@
 import { HttpService } from '@nestjs/axios';
-import {
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { ExecutarTrajetoDto } from 'src/dtos/executar-trajeto.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { TrajetoService } from '../trajeto/trajeto.service'; 
+import { TrajetoService } from '../trajeto/trajeto.service';
 import { SensorService } from '../sensors/sensor.service';
 
 @Injectable()
@@ -14,7 +11,7 @@ export class CarrinhoService {
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly trajetoService: TrajetoService, 
+    private readonly trajetoService: TrajetoService,
     private readonly sensorService: SensorService,
   ) {}
 
@@ -23,42 +20,68 @@ export class CarrinhoService {
 
     // Verificação pré-execução: sensores
     try {
+      // const trajetoSalvo = await this.trajetoService.salvarTrajeto(trajetoDto);
+      // const idParaOEsp = trajetoSalvo.id;
+      // console.log(
+      //   `[CarrinhoService] Trajeto criado no banco com ID: ${idParaOEsp}`,
+      // );
+      // const payloadParaCarrinho = {
+      //   comandos: trajetoDto.comandos,
+      // };
+      // console.log('⚠️ MODO TESTE: Simulando resposta positiva do carrinho...');
+      // const data = { status: 'recebido', mensagem: 'Simulação de teste' };
+      // return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
+
       const precheck = await this.sensorService.verificarTodos();
       if (precheck.status === 'falha') {
-        console.error('[CarrinhoService] Pre-check dos sensores falhou:', precheck.sensores);
-        throw new InternalServerErrorException('Pre-check dos sensores falhou.');
+        console.error(
+          '[CarrinhoService] Pre-check dos sensores falhou:',
+          precheck.sensores,
+        );
+        throw new InternalServerErrorException(
+          'Pre-check dos sensores falhou.',
+        );
       }
     } catch (err) {
-      console.error('[CarrinhoService] Erro durante pre-check:', err?.message || err);
+      console.error(
+        '[CarrinhoService] Erro durante pre-check:',
+        err?.message || err,
+      );
       throw new InternalServerErrorException('Erro no pre-check dos sensores.');
     }
 
     const trajetoSalvo = await this.trajetoService.salvarTrajeto(trajetoDto);
-    
+
     const idParaOEsp = trajetoSalvo.id;
-    console.log(`[CarrinhoService] Trajeto criado no banco com ID: ${idParaOEsp}`);
+    console.log(
+      `[CarrinhoService] Trajeto criado no banco com ID: ${idParaOEsp}`,
+    );
 
     const payloadParaCarrinho = {
       comandos: trajetoDto.comandos,
     };
 
     try {
+      console.log(
+        `[CarrinhoService] Enviando para ESP32 (ID: ${idParaOEsp})...`,
+      );
 
-      console.log(`[CarrinhoService] Enviando para ESP32 (ID: ${idParaOEsp})...`);
-      
       const { data } = await firstValueFrom(
         this.httpService
-          .post(`${this.IP_CARRINHO}/trajeto`, payloadParaCarrinho, { timeout: 5000 })
+          .post(`${this.IP_CARRINHO}/trajeto`, payloadParaCarrinho, {
+            timeout: 5000,
+          })
           .pipe(
             catchError((error) => {
               console.error('Erro ao comunicar com o carrinho:', error.message);
-              throw new InternalServerErrorException('Não foi possível conectar ao carrinho.');
+              throw new InternalServerErrorException(
+                'Não foi possível conectar ao carrinho.',
+              );
             }),
           ),
       );
 
       return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
-
     } catch (error) {
       this.handleError(error);
     }
@@ -85,7 +108,9 @@ export class CarrinhoService {
           .pipe(
             catchError((error) => {
               console.error(`Erro em /${endpoint}:`, error.message);
-              throw new InternalServerErrorException(`Falha ao chamar ${endpoint}.`);
+              throw new InternalServerErrorException(
+                `Falha ao chamar ${endpoint}.`,
+              );
             }),
           ),
       );

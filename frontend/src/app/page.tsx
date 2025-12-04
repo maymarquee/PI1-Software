@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useRef, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import axios from 'axios';
 import Modal1 from './components/Modal1';
 import Modal2 from './components/Modal2';
@@ -49,7 +49,7 @@ type TrajetoAnterior = {
   logsSegmento?: LogSegmento[];
 }
 
-const transformarRotasParaDto = (rotas: any[]): ComandoDto[] => {
+const transformarRotasParaDto = (rotas: Array<{action: string; value?: number}>): ComandoDto[] => {
   return rotas.map(rota => {
     if (rota.action === 'para frente') {
       return { acao: 'frente', valor: Number(rota.value) };
@@ -67,7 +67,7 @@ const transformarRotasParaDto = (rotas: any[]): ComandoDto[] => {
 export default function Home() {
   
   // Estados
-  const [rotasExemplo, setRotasExemplo] = useState<any[]>([]);
+  const [rotasExemplo, setRotasExemplo] = useState<Array<{id: number; action: string; value?: number}>>([]);
   const [trajetosAnteriores, setTrajetosAnteriores] = useState<TrajetoAnterior[]>([]);
   const [trajetoExpandido, setTrajetoExpandido] = useState<number | null>(null);
 
@@ -144,7 +144,7 @@ export default function Home() {
       if (rotaAtual.action === 'para frente' && rotaAnterior.action === 'para frente') {
         const valorAtual = Number(rotaAtual.value) || 0;
         const valorAnterior = Number(rotaAnterior.value) || 0;
-        rotaAnterior.value = String(valorAnterior + valorAtual);
+        rotaAnterior.value = valorAnterior + valorAtual;
         rotaAnterior.id = rotaAtual.id;
       } else if ((rotaAtual.action === 'rotacionar direita' && rotaAnterior.action === 'rotacionar esquerda') || (rotaAtual.action === 'rotacionar esquerda' && rotaAnterior.action === 'rotacionar direita')) {
         rotaAnterior = null;
@@ -204,20 +204,20 @@ export default function Home() {
     try {
       await axios.post('http://localhost:3001/carrinho/interruptar');
       toast.success('Parada enviada!');
-    } catch (err) { toast.error('Erro ao parar.'); } finally { setIsLoading(false); }
+    } catch (err: unknown) { toast.error('Erro ao parar.'); } finally { setIsLoading(false); }
   };
 
   // --- HELPERS ---
   const handleAdicionarRota = () => setShowModal1(true);
   const handleOpenModal2 = () => { setShowModal1(false); setShowModal2(true); };
   const handleModal2Confirm = (val: string) => { setPendingValue(val); setShowModal2(false); setShowModal3(true); };
-  const handleModal3Confirm = () => { setRotasExemplo(r => [...r, { id: Date.now(), action: 'para frente', value: pendingValue }]); setShowModal3(false); setShowModal1(false); };
+  const handleModal3Confirm = () => { setRotasExemplo(r => [...r, { id: Date.now(), action: 'para frente', value: Number(pendingValue) }]); setShowModal3(false); setShowModal1(false); };
   const handleAddRotateRight = () => { setRotasExemplo(r => [...r, { id: Date.now(), action: 'rotacionar direita' }]); setShowModal1(false); };
   const handleAddRotateLeft = () => { setRotasExemplo(r => [...r, { id: Date.now(), action: 'rotacionar esquerda' }]); setShowModal1(false); };
   const handleModalCancelAll = () => { setShowModal1(false); setShowModal2(false); setShowModal3(false); setShowModal4(false); };
   const handleDeleteRoute = (id: number) => setRotasExemplo(prev => prev.filter(r => r.id !== id));
 
-  const handleAbrirPorta = async () => { setIsLoading(true); try { await axios.post('http://localhost:3001/carrinho/abrir-porta'); toast.success('Porta aberta!'); } catch (e) { toast.error('Erro.'); } setIsLoading(false); };
+  const handleAbrirPorta = async () => { setIsLoading(true); try { await axios.post('http://localhost:3001/carrinho/abrir-porta'); toast.success('Porta aberta!'); } catch (e: unknown) { toast.error('Erro.'); } setIsLoading(false); };
   const handleFecharPorta = async () => { setIsLoading(true); try { await axios.post('http://localhost:3001/carrinho/fechar-porta'); toast.success('Porta fechada!'); } catch (e) { toast.error('Erro.'); } setIsLoading(false); };
 
   const handleReplay = async (trajeto: TrajetoAnterior) => {

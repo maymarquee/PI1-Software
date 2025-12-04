@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Adiciona e interrompe trajeto', () => {
-  test('deve abrir e fechar a porta do carrinho com sucesso', async ({ page }) => {
+  test('adiciona rotas, inicia e interrompe trajeto ', async ({ page }) => {
     // Mock das chamadas ao backend
     await page.route('http://localhost:3001/trajetos', route => 
       route.fulfill({ status: 200, contentType: 'application/json', body: '[]' })

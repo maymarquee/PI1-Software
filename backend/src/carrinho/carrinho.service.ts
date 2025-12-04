@@ -5,43 +5,44 @@ import {
 } from '@nestjs/common';
 import { ExecutarTrajetoDto } from 'src/dtos/executar-trajeto.dto';
 import { catchError, firstValueFrom } from 'rxjs';
-import { TrajetoService } from '../trajeto/trajeto.service'; // Importação correta
+import { TrajetoService } from '../trajeto/trajeto.service'; 
+import { SensorService } from '../sensors/sensor.service';
 
 @Injectable()
 export class CarrinhoService {
-  // IP ESP32
   private readonly IP_CARRINHO = 'http://192.168.47.216';
 
   constructor(
     private readonly httpService: HttpService,
-    private readonly trajetoService: TrajetoService, // Injeção do TrajetoService
+    private readonly trajetoService: TrajetoService, 
+    private readonly sensorService: SensorService,
   ) {}
 
   async executar(trajetoDto: ExecutarTrajetoDto) {
     console.log(`[CarrinhoService] Iniciando nova execução...`);
 
-    // Salva o planejamento no banco via TrajetoService
-    // O banco cria o registro, define status como "executando" e gera o ID numérico.
+    // Verificação pré-execução: sensores
+    try {
+      const precheck = await this.sensorService.verificarTodos();
+      if (precheck.status === 'falha') {
+        console.error('[CarrinhoService] Pre-check dos sensores falhou:', precheck.sensores);
+        throw new InternalServerErrorException('Pre-check dos sensores falhou.');
+      }
+    } catch (err) {
+      console.error('[CarrinhoService] Erro durante pre-check:', err?.message || err);
+      throw new InternalServerErrorException('Erro no pre-check dos sensores.');
+    }
+
     const trajetoSalvo = await this.trajetoService.salvarTrajeto(trajetoDto);
     
-    // Pega o ID que o banco gerou (ex: 15)
     const idParaOEsp = trajetoSalvo.id;
     console.log(`[CarrinhoService] Trajeto criado no banco com ID: ${idParaOEsp}`);
 
-    // Prepara o pacote para o ESP32
-    // O ESP32 precisa desse ID para enviar os feedbacks depois
     const payloadParaCarrinho = {
       comandos: trajetoDto.comandos,
     };
 
     try {
-      //  TESTE (SIMULAÇÃO) - Descomentar para testar requisições carrinho -> back sem ESP32
-      /*
-      console.log("⚠️ MODO TESTE: Simulando resposta positiva do carrinho...");
-      const data = { status: "recebido", mensagem: "Simulação de teste" };
-      return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
-      */
-      // _____
 
       console.log(`[CarrinhoService] Enviando para ESP32 (ID: ${idParaOEsp})...`);
       
@@ -56,7 +57,6 @@ export class CarrinhoService {
           ),
       );
 
-      // Retorna sucesso e o ID para o frontend saber o que monitorar
       return { status: 'enviado', runId: idParaOEsp, respostaCarrinho: data };
 
     } catch (error) {
@@ -76,7 +76,6 @@ export class CarrinhoService {
     return this.enviarComandoSimples('fecharPorta');
   }
 
-  // Helper para enviar comandos simples sem payload
   private async enviarComandoSimples(endpoint: string) {
     console.log(`[CarrinhoService] Enviando comando: ${endpoint}...`);
     try {
